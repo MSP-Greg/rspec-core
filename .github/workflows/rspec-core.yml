@@ -1,0 +1,40 @@
+name: CI
+
+on: [push, pull_request]
+
+jobs:
+  main:
+    name: >-
+      ${{ matrix.os }} ${{ matrix.ruby }}
+    runs-on: ${{ matrix.os }}-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ ubuntu, macos, windows ]
+        ruby: [ 2.2, 2.3, 2.4, 2.5, 2.6, 2.7, head ]
+        include:
+          - { os: windows, ruby: mingw }
+        exclude:
+          - { os: windows, ruby: head  }
+
+    steps:
+      - name: checkout
+        uses: actions/checkout@v2
+      - name: set up Ruby
+        uses: MSP-Greg/setup-ruby-pkgs@v1
+        with:
+          ruby-version: ${{ matrix.ruby }}
+          mingw: _upgrade_
+      - name: windows bundle config
+        if: matrix.os == 'windows'
+        run:  |
+          # force platform ruby for ffi
+          if ('${{ matrix.ruby }}' -ge '2.7') {
+            bundle config force_ruby_platform true
+          }
+      - name: install
+        run:  |
+          bundle config --local path vendor/bundle
+          bundle install
+      - name: test
+        run:  bundle exec rspec --backtrace
